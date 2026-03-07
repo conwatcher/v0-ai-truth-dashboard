@@ -1,83 +1,91 @@
-import { generateText } from 'ai'
+// API route to forward requests to your external Truth-Seeker Agent
 
-const agentPrompts: Record<string, string> = {
-  journalist: `You are an investigative journalist AI. Your job is to:
-- Research and present factual information about the given topic
-- Cite potential sources and evidence
-- Present multiple perspectives on controversial topics
-- Flag any claims that need verification
-- Write in a clear, professional journalistic style
-- Include a truth assessment score (0-100) based on verifiable evidence
-Format your response as a structured report with: HEADLINE, KEY FINDINGS, SOURCES, VERIFICATION STATUS (Verified/Pending/Flagged), and TRUTH SCORE.`,
-
-  scientist: `You are a scientific analyst AI. Your job is to:
-- Evaluate claims using the scientific method
-- Reference peer-reviewed studies and empirical data
-- Identify logical fallacies or unsupported claims
-- Distinguish between correlation and causation
-- Assess the quality and reliability of evidence
-- Provide a scientific consensus view when available
-Format your response with: SCIENTIFIC ASSESSMENT, EVIDENCE QUALITY, METHODOLOGY REVIEW, PEER REVIEW STATUS, and CONFIDENCE LEVEL (0-100).`,
-
-  robot: `You are an AI logic analyzer. Your job is to:
-- Perform systematic logical analysis of claims
-- Identify inconsistencies and contradictions
-- Cross-reference data points for accuracy
-- Calculate probability assessments
-- Detect patterns and anomalies in information
-- Provide algorithmic fact-checking results
-Format your response with: LOGICAL ANALYSIS, DATA CONSISTENCY CHECK, PATTERN DETECTION, PROBABILITY ASSESSMENT, and ACCURACY SCORE (0-100).`,
-
-  futurist: `You are a futurist analyst AI. Your job is to:
-- Predict potential implications and consequences of the topic
-- Analyze trends and extrapolate future scenarios
-- Consider technological, social, and economic impacts
-- Identify potential risks and opportunities
-- Provide both optimistic and pessimistic outlooks
-Format your response with: FUTURE IMPLICATIONS, TREND ANALYSIS, SCENARIO PROJECTIONS, RISK ASSESSMENT, and IMPACT SCORE (0-100).`,
-
-  "bias-detector": `You are a bias detection AI. Your job is to:
-- Identify potential biases in information sources
-- Detect emotional manipulation or loaded language
-- Analyze funding sources and conflicts of interest
-- Check for cherry-picked data or misleading statistics
-- Assess political, commercial, or ideological slants
-- Rate the objectivity of the information
-Format your response with: BIAS ASSESSMENT, LANGUAGE ANALYSIS, SOURCE CREDIBILITY, CONFLICT OF INTEREST CHECK, and OBJECTIVITY SCORE (0-100).`,
+export interface AgentResponse {
+  journalist: {
+    content: string
+    score: number
+  }
+  scientist: {
+    content: string
+    score: number
+  }
+  robot: {
+    content: string
+    score: number
+  }
+  futurist: {
+    content: string
+    score: number
+  }
+  biasDetector: {
+    content: string
+    score: number
+  }
+  overallScore: number
+  timestamp: string
 }
 
 export async function POST(req: Request) {
   try {
-    const { topic, agent = "journalist" } = await req.json()
+    const body = await req.json()
+    const { question, link, fileBase64, fileName, fileType } = body
 
-    if (!topic) {
-      return Response.json({ error: "Topic is required" }, { status: 400 })
+    // Get the API key from environment variables
+    const apiKey = process.env.TRUTH_SEEKER_API_KEY
+    const apiUrl = process.env.TRUTH_SEEKER_API_URL
+
+    if (!apiKey || !apiUrl) {
+      return Response.json(
+        { error: "Truth-Seeker API not configured. Please add TRUTH_SEEKER_API_KEY and TRUTH_SEEKER_API_URL environment variables." },
+        { status: 500 }
+      )
     }
 
-    const systemPrompt = agentPrompts[agent] || agentPrompts.journalist
+    // Build the request payload for your agent
+    const payload: Record<string, unknown> = {
+      question,
+    }
 
-    const { text } = await generateText({
-      model: 'openai/gpt-4o-mini',
-      system: systemPrompt,
-      prompt: `Analyze this topic: ${topic}`,
-      maxOutputTokens: 1500,
-      temperature: 0.7,
+    if (link) {
+      payload.link = link
+    }
+
+    if (fileBase64 && fileName) {
+      payload.file = {
+        data: fileBase64,
+        name: fileName,
+        type: fileType,
+      }
+    }
+
+    // Call your external Truth-Seeker Agent API
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(payload),
     })
 
-    // Extract score from the response
-    const scoreMatch = text.match(/(?:TRUTH SCORE|CONFIDENCE LEVEL|ACCURACY SCORE|IMPACT SCORE|OBJECTIVITY SCORE)[:\s]*(\d+)/i)
-    const score = scoreMatch ? parseInt(scoreMatch[1], 10) : 75
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error("Truth-Seeker API error:", errorText)
+      return Response.json(
+        { error: "Failed to get response from Truth-Seeker Agent" },
+        { status: response.status }
+      )
+    }
 
-    return Response.json({
-      content: text,
-      score,
-      agent,
-      timestamp: new Date().toISOString(),
-    })
+    const data: AgentResponse = await response.json()
+
+    // Return the full response from your agent
+    return Response.json(data)
+
   } catch (error) {
     console.error("Analysis error:", error)
     return Response.json(
-      { error: "Failed to analyze topic" },
+      { error: "Failed to analyze request" },
       { status: 500 }
     )
   }
