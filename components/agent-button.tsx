@@ -7,6 +7,7 @@ interface AgentButtonProps {
   agent: "scientist" | "robot" | "futurist" | "bias-detector"
   isActive?: boolean
   onClick?: () => void
+  hasResult?: boolean
 }
 
 const agentConfig: Record<
@@ -39,7 +40,7 @@ const agentConfig: Record<
   },
 }
 
-export function AgentButton({ agent, isActive, onClick }: AgentButtonProps) {
+export function AgentButton({ agent, isActive, onClick, hasResult }: AgentButtonProps) {
   const config = agentConfig[agent]
   const Icon = config.icon
 
@@ -67,11 +68,15 @@ export function AgentButton({ agent, isActive, onClick }: AgentButtonProps) {
           <p className="text-xs text-muted-foreground mt-0.5">{config.description}</p>
         </div>
       </div>
-      {isActive && (
-        <div className="absolute top-2 right-2">
+      {/* Status indicators */}
+      <div className="absolute top-2 right-2 flex items-center gap-1.5">
+        {hasResult && !isActive && (
+          <div className="h-2 w-2 rounded-full bg-emerald-500" title="Analysis complete" />
+        )}
+        {isActive && (
           <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-        </div>
-      )}
+        )}
+      </div>
     </button>
   )
 }

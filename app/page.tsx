@@ -1,82 +1,128 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { TruthMeter } from "@/components/truth-meter"
 import { AgentButton } from "@/components/agent-button"
-import { JournalistFeed } from "@/components/journalist-feed"
+import { TopicSearch } from "@/components/topic-search"
+import { AnalysisDisplay } from "@/components/analysis-display"
 
-const mockReports = [
-  {
-    id: "1",
-    title: "New Study Reveals Climate Change Accelerating Faster Than Predicted",
-    content:
-      "A comprehensive analysis of global temperature data from over 50 research institutions indicates that current climate models may be underestimating the rate of warming by approximately 15-20%. Scientists urge immediate policy action.",
-    source: "Nature Climate Research",
-    timestamp: "2 hours ago",
-    status: "verified" as const,
-    truthScore: 94,
-  },
-  {
-    id: "2",
-    title: "Tech Giant Announces Revolutionary Quantum Computing Breakthrough",
-    content:
-      "Claims of achieving 1000-qubit quantum supremacy are being examined. Initial peer reviews suggest promising results, though independent verification is still pending from multiple academic institutions.",
-    source: "TechCrunch",
-    timestamp: "4 hours ago",
-    status: "pending" as const,
-    truthScore: 67,
-  },
-  {
-    id: "3",
-    title: "Viral Social Media Post Claims New Miracle Health Treatment",
-    content:
-      "A widely shared post claiming a new supplement can cure multiple diseases lacks scientific evidence. Medical experts warn against unverified health claims circulating on social platforms.",
-    source: "Health Watch Network",
-    timestamp: "6 hours ago",
-    status: "flagged" as const,
-    truthScore: 23,
-  },
-  {
-    id: "4",
-    title: "Economic Report Shows Mixed Signals for Global Markets",
-    content:
-      "Latest quarterly analysis presents nuanced findings about economic recovery patterns. While some sectors show strong growth, others continue to face significant headwinds from supply chain disruptions.",
-    source: "Financial Times",
-    timestamp: "8 hours ago",
-    status: "verified" as const,
-    truthScore: 88,
-  },
-]
+type Agent = "journalist" | "scientist" | "robot" | "futurist" | "bias-detector"
 
-const agents = ["scientist", "robot", "futurist", "bias-detector"] as const
+interface AnalysisResult {
+  content: string
+  score: number
+  agent: string
+  timestamp: string
+}
+
+const agents: Agent[] = ["scientist", "robot", "futurist", "bias-detector"]
 
 export default function DashboardPage() {
-  const [activeAgent, setActiveAgent] = useState<string | null>(null)
-  const [truthScore, setTruthScore] = useState(72)
+  const [activeAgent, setActiveAgent] = useState<Agent>("journalist")
+  const [currentTopic, setCurrentTopic] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [truthScore, setTruthScore] = useState(0)
+  
+  // Store results for each agent
+  const [results, setResults] = useState<Record<string, AnalysisResult | null>>({
+    journalist: null,
+    scientist: null,
+    robot: null,
+    futurist: null,
+    "bias-detector": null,
+  })
 
-  const handleAgentClick = (agent: string) => {
-    if (activeAgent === agent) {
-      setActiveAgent(null)
-      setTruthScore(72)
-    } else {
-      setActiveAgent(agent)
-      // Simulate different truth scores based on agent analysis
-      const scores: Record<string, number> = {
-        scientist: 78,
-        robot: 85,
-        futurist: 69,
-        "bias-detector": 62,
+  const analyzeWithAgent = useCallback(async (topic: string, agent: Agent) => {
+    try {
+      const response = await fetch("/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ topic, agent }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Analysis failed")
       }
-      setTruthScore(scores[agent] || 72)
+
+      const data: AnalysisResult = await response.json()
+      return data
+    } catch (error) {
+      console.error(`[v0] Analysis error for ${agent}:`, error)
+      return null
+    }
+  }, [])
+
+  const handleSearch = async (topic: string) => {
+    setCurrentTopic(topic)
+    setIsLoading(true)
+    setActiveAgent("journalist")
+    
+    // Clear previous results
+    setResults({
+      journalist: null,
+      scientist: null,
+      robot: null,
+      futurist: null,
+      "bias-detector": null,
+    })
+
+    // First, get the journalist analysis
+    const journalistResult = await analyzeWithAgent(topic, "journalist")
+    
+    if (journalistResult) {
+      setResults((prev) => ({ ...prev, journalist: journalistResult }))
+      setTruthScore(journalistResult.score)
+    }
+    
+    setIsLoading(false)
+  }
+
+  const handleAgentClick = async (agent: Agent) => {
+    // If clicking the same agent, go back to journalist
+    if (activeAgent === agent) {
+      setActiveAgent("journalist")
+      const journalistResult = results.journalist
+      if (journalistResult) {
+        setTruthScore(journalistResult.score)
+      }
+      return
+    }
+
+    setActiveAgent(agent)
+
+    // If we already have results for this agent, just display them
+    if (results[agent]) {
+      setTruthScore(results[agent]!.score)
+      return
+    }
+
+    // If we have a topic but no results for this agent, fetch them
+    if (currentTopic) {
+      setIsLoading(true)
+      const result = await analyzeWithAgent(currentTopic, agent)
+      
+      if (result) {
+        setResults((prev) => ({ ...prev, [agent]: result }))
+        setTruthScore(result.score)
+      }
+      
+      setIsLoading(false)
     }
   }
+
+  const currentResult = results[activeAgent]
 
   return (
     <div className="min-h-screen bg-background">
       <DashboardHeader />
       
       <main className="p-4 lg:p-6">
+        {/* Topic Search */}
+        <div className="mb-6">
+          <TopicSearch onSearch={handleSearch} isLoading={isLoading && activeAgent === "journalist"} />
+        </div>
+
         {/* Truth-O-Meter */}
         <div className="mb-6">
           <TruthMeter value={truthScore} />
@@ -86,7 +132,19 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
           {/* Central Feed */}
           <div className="min-w-0">
-            <JournalistFeed reports={mockReports} activeAgent={activeAgent} />
+            <AnalysisDisplay
+              content={currentResult?.content || null}
+              agent={activeAgent}
+              isLoading={isLoading}
+              score={currentResult?.score || 0}
+            />
+            
+            {/* Show current topic */}
+            {currentTopic && (
+              <div className="mt-4 text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">Current Topic:</span> {currentTopic}
+              </div>
+            )}
           </div>
 
           {/* Right Sidebar */}
@@ -96,6 +154,9 @@ export default function DashboardPage() {
                 <span className="h-1.5 w-1.5 rounded-full bg-primary" />
                 Analysis Agents
               </h2>
+              <p className="text-xs text-muted-foreground mb-4">
+                Click an agent to see their perspective on the current topic.
+              </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3">
                 {agents.map((agent) => (
                   <AgentButton
@@ -103,34 +164,42 @@ export default function DashboardPage() {
                     agent={agent}
                     isActive={activeAgent === agent}
                     onClick={() => handleAgentClick(agent)}
+                    hasResult={!!results[agent]}
                   />
                 ))}
               </div>
             </div>
 
-            {/* Stats Panel */}
+            {/* Agent Results Summary */}
             <div className="rounded-lg border border-border bg-card p-4">
               <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                Today&apos;s Stats
+                Analysis Summary
               </h2>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="text-center p-3 rounded-lg bg-secondary/50">
-                  <p className="text-2xl font-bold text-foreground">47</p>
-                  <p className="text-xs text-muted-foreground">Reports Analyzed</p>
-                </div>
-                <div className="text-center p-3 rounded-lg bg-secondary/50">
-                  <p className="text-2xl font-bold text-emerald-500">38</p>
-                  <p className="text-xs text-muted-foreground">Verified</p>
-                </div>
-                <div className="text-center p-3 rounded-lg bg-secondary/50">
-                  <p className="text-2xl font-bold text-amber-500">6</p>
-                  <p className="text-xs text-muted-foreground">Pending</p>
-                </div>
-                <div className="text-center p-3 rounded-lg bg-secondary/50">
-                  <p className="text-2xl font-bold text-destructive">3</p>
-                  <p className="text-xs text-muted-foreground">Flagged</p>
-                </div>
+              <div className="grid grid-cols-2 gap-3">
+                {(["journalist", ...agents] as Agent[]).map((agent) => {
+                  const result = results[agent]
+                  return (
+                    <button
+                      key={agent}
+                      onClick={() => {
+                        if (result) {
+                          setActiveAgent(agent)
+                          setTruthScore(result.score)
+                        }
+                      }}
+                      disabled={!result}
+                      className="text-center p-3 rounded-lg bg-secondary/50 transition-colors hover:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <p className={`text-lg font-bold ${result ? getScoreColor(result.score) : "text-muted-foreground"}`}>
+                        {result ? `${result.score}%` : "—"}
+                      </p>
+                      <p className="text-xs text-muted-foreground capitalize">
+                        {agent.replace("-", " ")}
+                      </p>
+                    </button>
+                  )
+                })}
               </div>
             </div>
           </aside>
@@ -138,4 +207,11 @@ export default function DashboardPage() {
       </main>
     </div>
   )
+}
+
+function getScoreColor(score: number): string {
+  if (score >= 80) return "text-emerald-500"
+  if (score >= 60) return "text-primary"
+  if (score >= 40) return "text-amber-500"
+  return "text-destructive"
 }
