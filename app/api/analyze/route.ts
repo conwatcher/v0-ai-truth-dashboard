@@ -1,27 +1,19 @@
 // API route to forward requests to your external Truth-Seeker Agent
 
+export interface AgentPerspective {
+  analysis: string
+  truthScore: number
+  keyFindings: string[]
+  confidence: number
+}
+
 export interface AgentResponse {
-  journalist: {
-    content: string
-    score: number
-  }
-  scientist: {
-    content: string
-    score: number
-  }
-  robot: {
-    content: string
-    score: number
-  }
-  futurist: {
-    content: string
-    score: number
-  }
-  biasDetector: {
-    content: string
-    score: number
-  }
-  overallScore: number
+  journalist: AgentPerspective
+  scientist: AgentPerspective
+  robot: AgentPerspective
+  futurist: AgentPerspective
+  biasDetector: AgentPerspective
+  overallTruthScore: number
   timestamp: string
 }
 
