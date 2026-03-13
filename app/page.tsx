@@ -3,22 +3,16 @@
 import { useState } from "react"
 
 const JOURNALIST = { id: "journalist", name: "Journalist", emoji: "📰", role: "Investigative Summary", color: "#34D399" }
-
 const SPECIALISTS = [
   { id: "scientist", name: "Scientist", emoji: "🔬", role: "Empirical Analysis", color: "#38BDF8" },
   { id: "robot", name: "Logic AI", emoji: "🤖", role: "Logical Analysis", color: "#A78BFA" },
   { id: "futurist", name: "Futurist", emoji: "🚀", role: "Implications", color: "#F59E0B" },
   { id: "bias", name: "Bias Detector", emoji: "🎯", role: "Bias Analysis", color: "#F87171" },
 ]
-
 const ALL_AGENTS = [JOURNALIST, ...SPECIALISTS]
 
 const SCORE_LABEL: Record<string, string> = {
-  journalist: "VERDICT",
-  scientist: "TRUTH",
-  robot: "TRUTH",
-  futurist: "IMPACT",
-  bias: "TRUTH",
+  journalist: "VERDICT", scientist: "TRUTH", robot: "TRUTH", futurist: "IMPACT", bias: "TRUTH",
 }
 
 function getScoreColor(score: number) {
@@ -98,15 +92,20 @@ function AgentCard({ agent, result, isLoading }: {
 }
 
 export default function TruthSeeker() {
+  const [activeTab, setActiveTab] = useState<"question" | "link">("question")
   const [query, setQuery] = useState("")
+  const [url, setUrl] = useState("")
+  const [comment, setComment] = useState("")
   const [results, setResults] = useState<Record<string, { analysis: string; score: number }>>({})
   const [loading, setLoading] = useState<Record<string, boolean>>({})
   const [overallScore, setOverallScore] = useState<number | null>(null)
   const [hasRun, setHasRun] = useState(false)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
 
+  const canSubmit = activeTab === "question" ? query.trim().length > 0 : url.trim().length > 0
+
   const analyze = async () => {
-    if (!query.trim()) return
+    if (!canSubmit) return
     setResults({})
     setOverallScore(null)
     setHasRun(true)
@@ -115,13 +114,18 @@ export default function TruthSeeker() {
     ALL_AGENTS.forEach((a) => (initLoading[a.id] = true))
     setLoading(initLoading)
     const scores: number[] = []
+
     await Promise.all(
       ALL_AGENTS.map(async (agent) => {
         try {
+          const body = activeTab === "question"
+            ? { agentId: agent.id, query }
+            : { agentId: agent.id, url, comment }
+
           const res = await fetch("/api/analyze", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ agentId: agent.id, query }),
+            body: JSON.stringify(body),
           })
           const data = await res.json()
           setResults((prev) => ({ ...prev, [agent.id]: data }))
@@ -143,6 +147,14 @@ export default function TruthSeeker() {
   const progressPct = hasRun ? Math.round((completedCount / totalCount) * 100) : 0
   const allDone = completedCount === totalCount
 
+  const tabStyle = (tab: "question" | "link") => ({
+    padding: "12px 24px", background: "transparent", border: "none",
+    borderBottom: activeTab === tab ? "2px solid #F59E0B" : "2px solid transparent",
+    color: activeTab === tab ? "#F59E0B" : "#475569",
+    fontSize: "10px", letterSpacing: "2px", cursor: "pointer",
+    fontFamily: "inherit", fontWeight: 700, transition: "all 0.2s",
+  })
+
   return (
     <div style={{ minHeight: "100vh", background: "#080B14", color: "#CBD5E1", fontFamily: "'Courier New', monospace", padding: "40px 20px" }}>
       <style>{`
@@ -155,119 +167,3 @@ export default function TruthSeeker() {
         {/* Header */}
         <div style={{ textAlign: "center", marginBottom: "40px" }}>
           <div style={{ fontSize: "10px", color: "#F59E0B", letterSpacing: "5px", marginBottom: "10px" }}>◈ MULTI-AGENT TRUTH VERIFICATION SYSTEM ◈</div>
-          <h1 style={{ fontSize: "52px", fontWeight: 900, fontFamily: "Georgia, serif", color: "#F8FAFC", margin: 0 }}>TRUTH-SEEKER AI</h1>
-          <div style={{ marginTop: "12px", fontSize: "10px", color: "#334155", letterSpacing: "3px" }}>POWERED BY CLAUDE — REAL-TIME FACT VERIFICATION</div>
-          <div style={{ marginTop: "14px", display: "inline-flex", alignItems: "center", gap: "8px", background: "#0F1A2B", border: "1px solid #1E3A5F", borderRadius: "100px", padding: "4px 16px" }}>
-            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#4ADE80", display: "inline-block", animation: "pulse 2s infinite" }} />
-            <span style={{ fontSize: "10px", color: "#4ADE80", letterSpacing: "2px" }}>SYSTEM ONLINE</span>
-          </div>
-        </div>
-
-        {/* Input */}
-        <div style={{ background: "#0D1220", border: "1px solid #1E2D45", borderRadius: "16px", padding: "24px", marginBottom: "28px" }}>
-          <textarea
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder='Enter a claim to verify... e.g. "The moon landing was faked in 1969"'
-            style={{ width: "100%", minHeight: "100px", background: "#080B14", border: "1px solid #1E2D45", borderRadius: "10px", color: "#CBD5E1", padding: "14px", fontSize: "14px", fontFamily: "inherit", resize: "vertical", boxSizing: "border-box" }}
-          />
-          <div style={{ textAlign: "right", marginTop: "12px" }}>
-            <button
-              onClick={analyze}
-              disabled={!query.trim() || isAnalyzing}
-              style={{ background: query.trim() && !isAnalyzing ? "#F59E0B" : "#1A2030", color: query.trim() && !isAnalyzing ? "#080B14" : "#2D3A50", border: "none", padding: "12px 32px", borderRadius: "8px", fontSize: "11px", letterSpacing: "3px", fontWeight: 900, cursor: query.trim() && !isAnalyzing ? "pointer" : "default", fontFamily: "inherit" }}
-            >
-              {isAnalyzing ? "INVESTIGATING..." : "▶ INVESTIGATE"}
-            </button>
-          </div>
-        </div>
-
-        {/* Progress bar */}
-        {hasRun && !allDone && (
-          <div style={{ background: "#0D1220", border: "1px solid #1E2D45", borderRadius: "12px", padding: "20px", marginBottom: "28px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <Spinner color="#F59E0B" />
-                <span style={{ fontSize: "10px", color: "#F59E0B", letterSpacing: "3px" }}>AGENTS INVESTIGATING...</span>
-              </div>
-              <span style={{ fontSize: "11px", color: "#475569" }}>{completedCount} / {totalCount} complete</span>
-            </div>
-            <div style={{ height: "6px", background: "#0F1A2B", borderRadius: "3px", overflow: "hidden" }}>
-              <div style={{ height: "100%", width: `${progressPct}%`, background: "#F59E0B", borderRadius: "3px", transition: "width 0.4s ease" }} />
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", marginTop: "10px", gap: "6px" }}>
-              {ALL_AGENTS.map((agent) => (
-                <div key={agent.id} style={{ flex: 1, textAlign: "center" }}>
-                  <div style={{ fontSize: "14px", marginBottom: "2px" }}>{agent.emoji}</div>
-                  <div style={{ width: "100%", height: "3px", borderRadius: "2px", background: results[agent.id] ? agent.color : loading[agent.id] ? agent.color + "40" : "#1E2D45", transition: "background 0.3s" }} />
-                  <div style={{ fontSize: "8px", color: results[agent.id] ? agent.color : "#2D3A50", marginTop: "3px", letterSpacing: "1px" }}>
-                    {results[agent.id] ? "DONE" : loading[agent.id] ? "..." : "WAIT"}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Truth-O-Meter */}
-        {allDone && overallScore !== null && (
-          <div style={{ background: "#0D1220", border: `1px solid ${getScoreColor(overallScore)}40`, borderRadius: "16px", padding: "28px", marginBottom: "28px", textAlign: "center", animation: "fadeIn 0.5s ease" }}>
-            <div style={{ fontSize: "10px", color: "#475569", letterSpacing: "4px", marginBottom: "16px" }}>◈ TRUTH-O-METER ◈</div>
-            <div style={{ fontSize: "80px", fontWeight: 900, color: getScoreColor(overallScore), fontFamily: "Georgia, serif", lineHeight: 1 }}>{overallScore}<span style={{ fontSize: "36px", opacity: 0.6 }}>%</span></div>
-            <div style={{ fontSize: "22px", letterSpacing: "6px", color: getScoreColor(overallScore), margin: "8px 0", fontWeight: 700 }}>{getVerdict(overallScore)}</div>
-            <div style={{ height: "8px", background: "#0F1A2B", borderRadius: "4px", overflow: "hidden", marginTop: "16px" }}>
-              <div style={{ height: "100%", width: `${overallScore}%`, background: getScoreColor(overallScore), borderRadius: "4px", transition: "width 1s ease" }} />
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", marginTop: "6px", fontSize: "9px", color: "#2D3A50" }}>
-              <span>FALSE</span><span>UNCERTAIN</span><span>TRUE</span>
-            </div>
-          </div>
-        )}
-
-        {/* Results */}
-        {hasRun && (
-          <div>
-
-            {/* Journalist — full width, front page */}
-            <AgentCard
-              agent={JOURNALIST}
-              result={results[JOURNALIST.id]}
-              isLoading={loading[JOURNALIST.id]}
-            />
-
-            {/* Divider */}
-            <div style={{ display: "flex", alignItems: "center", gap: "12px", margin: "20px 0" }}>
-              <div style={{ flex: 1, height: "1px", background: "#1E2D45" }} />
-              <div style={{ fontSize: "9px", color: "#334155", letterSpacing: "3px", whiteSpace: "nowrap" }}>◈ SPECIALIST ANALYSIS ◈</div>
-              <div style={{ flex: 1, height: "1px", background: "#1E2D45" }} />
-            </div>
-
-            {/* Specialist grid */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: "16px" }}>
-              {SPECIALISTS.map((agent) => (
-                <AgentCard
-                  key={agent.id}
-                  agent={agent}
-                  result={results[agent.id]}
-                  isLoading={loading[agent.id]}
-                />
-              ))}
-            </div>
-
-          </div>
-        )}
-
-        {/* Empty state */}
-        {!hasRun && (
-          <div style={{ textAlign: "center", padding: "60px 20px", color: "#1E2D45" }}>
-            <div style={{ fontSize: "40px", marginBottom: "12px" }}>◈</div>
-            <div style={{ fontSize: "11px", letterSpacing: "3px" }}>SUBMIT A CLAIM TO BEGIN ANALYSIS</div>
-            <div style={{ fontSize: "10px", color: "#172030", letterSpacing: "1px", marginTop: "8px" }}>THE JOURNALIST WILL GIVE YOU THE SUMMARY — SPECIALISTS PROVIDE THE DETAIL</div>
-          </div>
-        )}
-
-        <div style={{ marginTop: "50px", textAlign: "center", fontSize: "10px", color: "#1E2D45", letterSpacing: "2px" }}>TRUTH-SEEKER AI — POWERED BY CLAUDE</div>
-      </div>
-    </div>
-  )
-}
