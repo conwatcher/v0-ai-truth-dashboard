@@ -91,7 +91,7 @@ export default function DashboardPage() {
       
       <main className="p-4 lg:p-6">
         {/* Query Input */}
-        <div className="mb-6">
+        <div className="mb-8">
           <QueryInput onSubmit={handleSubmit} isLoading={isLoading} />
         </div>
 
