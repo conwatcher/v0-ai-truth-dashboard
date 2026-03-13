@@ -1,84 +1,53 @@
-// API route to forward requests to your external Truth-Seeker Agent
+import { NextRequest, NextResponse } from "next/server";
 
-export interface AgentPerspective {
-  analysis: string
-  truthScore: number
-  keyFindings: string[]
-  confidence: number
-}
+const AGENT_PROMPTS: Record<string, string> = {
+  scientist: `You are the Scientist agent in Truth-Seeker AI. Analyze claims using empirical evidence, scientific consensus, statistics, and verifiable data. Be rigorous and evidence-based. Keep your analysis to 3-4 clear sentences. At the very end output ONLY this JSON on its own line: {"score": X} where X is 0-100 truth confidence.`,
+  robot: `You are the Logic AI agent in Truth-Seeker AI. Analyze claims using pure logical reasoning. Check for internal consistency, logical fallacies, and whether conclusions follow from premises. Keep your analysis to 3-4 sentences. At the very end output ONLY this JSON on its own line: {"score": X} where X is 0-100 truth confidence.`,
+  futurist: `You are the Futurist agent in Truth-Seeker AI. Analyze the broader implications of the claim. If true, what does it mean for society? If false, why does the narrative exist? Keep your analysis to 3-4 sentences. At the very end output ONLY this JSON on its own line: {"score": X} where X is 0-100 truth confidence.`,
+  bias: `You are the Bias Detector agent in Truth-Seeker AI. Identify cognitive biases, emotional manipulation, political slant, or logical fallacies in the claim. Name the specific biases you find. Keep your analysis to 3-4 sentences. At the very end output ONLY this JSON on its own line: {"score": X} where X is 0-100 truth confidence.`,
+};
 
-export interface AgentResponse {
-  journalist: AgentPerspective
-  scientist: AgentPerspective
-  robot: AgentPerspective
-  futurist: AgentPerspective
-  biasDetector: AgentPerspective
-  overallTruthScore: number
-  timestamp: string
-}
+export async function POST(req: NextRequest) {
+  const { agentId, query } = await req.json();
 
-export async function POST(req: Request) {
-  try {
-    const body = await req.json()
-    const { question, link, fileBase64, fileName, fileType } = body
-
-    // Get the API key from environment variables
-    const apiKey = process.env.TRUTH_SEEKER_API_KEY
-    const apiUrl = process.env.TRUTH_SEEKER_API_URL
-
-    if (!apiKey || !apiUrl) {
-      return Response.json(
-        { error: "Truth-Seeker API not configured. Please add TRUTH_SEEKER_API_KEY and TRUTH_SEEKER_API_URL environment variables." },
-        { status: 500 }
-      )
-    }
-
-    // Build the request payload for your agent
-    const payload: Record<string, unknown> = {
-      question,
-    }
-
-    if (link) {
-      payload.link = link
-    }
-
-    if (fileBase64 && fileName) {
-      payload.file = {
-        data: fileBase64,
-        name: fileName,
-        type: fileType,
-      }
-    }
-
-    // Call your external Truth-Seeker Agent API
-    const response = await fetch(apiUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify(payload),
-    })
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error("Truth-Seeker API error:", errorText)
-      return Response.json(
-        { error: "Failed to get response from Truth-Seeker Agent" },
-        { status: response.status }
-      )
-    }
-
-    const data: AgentResponse = await response.json()
-
-    // Return the full response from your agent
-    return Response.json(data)
-
-  } catch (error) {
-    console.error("Analysis error:", error)
-    return Response.json(
-      { error: "Failed to analyze request" },
-      { status: 500 }
-    )
+  if (!agentId || !query) {
+    return NextResponse.json({ error: "Missing agentId or query" }, { status: 400 });
   }
+
+  const systemPrompt = AGENT_PROMPTS[agentId];
+  if (!systemPrompt) {
+    return NextResponse.json({ error: "Unknown agent" }, { status: 400 });
+  }
+
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    return NextResponse.json({ error: "API key not configured" }, { status: 500 });
+  }
+
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-5",
+      max_tokens: 1024,
+      system: systemPrompt,
+      messages: [{ role: "user", content: `Analyze this claim: "${query}"` }],
+    }),
+  });
+
+  const data = await response.json();
+  const fullText = (data.content || [])
+    .filter((b: { type: string }) => b.type === "text")
+    .map((b: { text: string }) => b.text)
+    .join("\n");
+
+  const scoreMatch = fullText.match(/\{"score":\s*(\d+)\}/);
+  const score = scoreMatch ? Math.max(0, Math.min(100, parseInt(scoreMatch[1], 10))) : 50;
+  const analysis = fullText.replace(/\{"score":\s*\d+\}/g, "").trim();
+
+  return NextResponse.json({ analysis, score });
 }
