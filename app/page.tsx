@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 
 const JOURNALIST = { id: "journalist", name: "Journalist", emoji: "📰", role: "Investigative Summary", color: "#34D399" }
 const SPECIALISTS = [
@@ -96,13 +96,40 @@ export default function TruthSeeker() {
   const [query, setQuery] = useState("")
   const [url, setUrl] = useState("")
   const [comment, setComment] = useState("")
+  const [imageBase64, setImageBase64] = useState<string | null>(null)
+  const [imageMediaType, setImageMediaType] = useState<string>("image/jpeg")
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [results, setResults] = useState<Record<string, { analysis: string; score: number }>>({})
   const [loading, setLoading] = useState<Record<string, boolean>>({})
   const [overallScore, setOverallScore] = useState<number | null>(null)
   const [hasRun, setHasRun] = useState(false)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const canSubmit = activeTab === "question" ? query.trim().length > 0 : url.trim().length > 0
+  const canSubmit = activeTab === "question"
+    ? (query.trim().length > 0 || imageBase64 !== null)
+    : url.trim().length > 0
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const mediaType = file.type || "image/jpeg"
+    setImageMediaType(mediaType)
+    const previewUrl = URL.createObjectURL(file)
+    setImagePreview(previewUrl)
+    const reader = new FileReader()
+    reader.onload = () => {
+      const base64 = (reader.result as string).split(",")[1]
+      setImageBase64(base64)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const removeImage = () => {
+    setImageBase64(null)
+    setImagePreview(null)
+    if (fileInputRef.current) fileInputRef.current.value = ""
+  }
 
   const analyze = async () => {
     if (!canSubmit) return
@@ -118,9 +145,14 @@ export default function TruthSeeker() {
     await Promise.all(
       ALL_AGENTS.map(async (agent) => {
         try {
-          const body = activeTab === "question"
-            ? { agentId: agent.id, query }
-            : { agentId: agent.id, url, comment }
+          let body: Record<string, unknown>
+          if (activeTab === "link") {
+            body = { agentId: agent.id, url, comment }
+          } else if (imageBase64) {
+            body = { agentId: agent.id, imageBase64, imageMediaType }
+          } else {
+            body = { agentId: agent.id, query }
+          }
 
           const res = await fetch("/api/analyze", {
             method: "POST",
@@ -177,8 +209,6 @@ export default function TruthSeeker() {
 
         {/* Input Panel */}
         <div style={{ background: "#0D1220", border: "1px solid #1E2D45", borderRadius: "16px", overflow: "hidden", marginBottom: "28px" }}>
-
-          {/* Tabs */}
           <div style={{ display: "flex", borderBottom: "1px solid #1E2D45", background: "#080B14" }}>
             <button style={tabStyle("question")} onClick={() => setActiveTab("question")}>⬡ QUESTION</button>
             <button style={tabStyle("link")} onClick={() => setActiveTab("link")}>⬡ LINK / URL</button>
@@ -186,12 +216,47 @@ export default function TruthSeeker() {
 
           <div style={{ padding: "24px" }}>
             {activeTab === "question" && (
-              <textarea
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder='Enter a claim to verify... e.g. "The moon landing was faked in 1969"'
-                style={{ width: "100%", minHeight: "100px", background: "#080B14", border: "1px solid #1E2D45", borderRadius: "10px", color: "#CBD5E1", padding: "14px", fontSize: "14px", fontFamily: "inherit", resize: "vertical", boxSizing: "border-box" }}
-              />
+              <div>
+                <textarea
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder={imageBase64 ? "Image attached — ready to analyze" : 'Enter a claim to verify... e.g. "The moon landing was faked in 1969"'}
+                  disabled={!!imageBase64}
+                  style={{ width: "100%", minHeight: "100px", background: "#080B14", border: "1px solid #1E2D45", borderRadius: "10px", color: imageBase64 ? "#2D3A50" : "#CBD5E1", padding: "14px", fontSize: "14px", fontFamily: "inherit", resize: "vertical", boxSizing: "border-box", opacity: imageBase64 ? 0.5 : 1 }}
+                />
+
+                {/* Image preview */}
+                {imagePreview && (
+                  <div style={{ marginTop: "12px", position: "relative", display: "inline-block" }}>
+                    <img src={imagePreview} alt="Uploaded" style={{ maxHeight: "200px", maxWidth: "100%", borderRadius: "10px", border: "1px solid #1E2D45", display: "block" }} />
+                    <button
+                      onClick={removeImage}
+                      style={{ position: "absolute", top: "8px", right: "8px", background: "#F87171", color: "#080B14", border: "none", borderRadius: "50%", width: "24px", height: "24px", fontSize: "14px", cursor: "pointer", fontWeight: 900, lineHeight: "24px", textAlign: "center", padding: 0 }}
+                    >✕</button>
+                    <div style={{ marginTop: "6px", fontSize: "9px", color: "#34D399", letterSpacing: "2px" }}>✓ IMAGE READY FOR ANALYSIS</div>
+                  </div>
+                )}
+
+                {/* Attach image button */}
+                {!imagePreview && (
+                  <div style={{ marginTop: "10px" }}>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/gif,image/webp"
+                      onChange={handleImageUpload}
+                      style={{ display: "none" }}
+                    />
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      style={{ background: "transparent", border: "1px dashed #1E2D45", borderRadius: "8px", color: "#475569", padding: "8px 16px", fontSize: "10px", letterSpacing: "2px", cursor: "pointer", fontFamily: "inherit", transition: "all 0.2s" }}
+                    >
+                      📎 ATTACH IMAGE
+                    </button>
+                    <span style={{ fontSize: "9px", color: "#2D3A50", marginLeft: "10px", letterSpacing: "1px" }}>JPG, PNG, GIF, WEBP</span>
+                  </div>
+                )}
+              </div>
             )}
 
             {activeTab === "link" && (
@@ -207,7 +272,7 @@ export default function TruthSeeker() {
                   />
                 </div>
                 <div>
-                  <div style={{ fontSize: "9px", color: "#475569", letterSpacing: "2px", marginBottom: "6px" }}>YOUR COMMENT <span style={{ color: "#2D3A50" }}>(OPTIONAL — tell us what concerned you about this link)</span></div>
+                  <div style={{ fontSize: "9px", color: "#475569", letterSpacing: "2px", marginBottom: "6px" }}>YOUR COMMENT <span style={{ color: "#2D3A50" }}>(OPTIONAL)</span></div>
                   <textarea
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
@@ -292,7 +357,7 @@ export default function TruthSeeker() {
         {!hasRun && (
           <div style={{ textAlign: "center", padding: "60px 20px", color: "#1E2D45" }}>
             <div style={{ fontSize: "40px", marginBottom: "12px" }}>◈</div>
-            <div style={{ fontSize: "11px", letterSpacing: "3px" }}>SUBMIT A CLAIM OR LINK TO BEGIN ANALYSIS</div>
+            <div style={{ fontSize: "11px", letterSpacing: "3px" }}>SUBMIT A CLAIM, LINK, OR IMAGE TO BEGIN ANALYSIS</div>
             <div style={{ fontSize: "10px", color: "#172030", letterSpacing: "1px", marginTop: "8px" }}>THE JOURNALIST WILL GIVE YOU THE SUMMARY — SPECIALISTS PROVIDE THE DETAIL</div>
           </div>
         )}
