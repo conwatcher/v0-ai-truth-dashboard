@@ -167,3 +167,138 @@ export default function TruthSeeker() {
         {/* Header */}
         <div style={{ textAlign: "center", marginBottom: "40px" }}>
           <div style={{ fontSize: "10px", color: "#F59E0B", letterSpacing: "5px", marginBottom: "10px" }}>◈ MULTI-AGENT TRUTH VERIFICATION SYSTEM ◈</div>
+          <h1 style={{ fontSize: "52px", fontWeight: 900, fontFamily: "Georgia, serif", color: "#F8FAFC", margin: 0 }}>TRUTH-SEEKER AI</h1>
+          <div style={{ marginTop: "12px", fontSize: "10px", color: "#334155", letterSpacing: "3px" }}>POWERED BY CLAUDE — REAL-TIME FACT VERIFICATION</div>
+          <div style={{ marginTop: "14px", display: "inline-flex", alignItems: "center", gap: "8px", background: "#0F1A2B", border: "1px solid #1E3A5F", borderRadius: "100px", padding: "4px 16px" }}>
+            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#4ADE80", display: "inline-block", animation: "pulse 2s infinite" }} />
+            <span style={{ fontSize: "10px", color: "#4ADE80", letterSpacing: "2px" }}>SYSTEM ONLINE</span>
+          </div>
+        </div>
+
+        {/* Input Panel */}
+        <div style={{ background: "#0D1220", border: "1px solid #1E2D45", borderRadius: "16px", overflow: "hidden", marginBottom: "28px" }}>
+
+          {/* Tabs */}
+          <div style={{ display: "flex", borderBottom: "1px solid #1E2D45", background: "#080B14" }}>
+            <button style={tabStyle("question")} onClick={() => setActiveTab("question")}>⬡ QUESTION</button>
+            <button style={tabStyle("link")} onClick={() => setActiveTab("link")}>⬡ LINK / URL</button>
+          </div>
+
+          <div style={{ padding: "24px" }}>
+            {activeTab === "question" && (
+              <textarea
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder='Enter a claim to verify... e.g. "The moon landing was faked in 1969"'
+                style={{ width: "100%", minHeight: "100px", background: "#080B14", border: "1px solid #1E2D45", borderRadius: "10px", color: "#CBD5E1", padding: "14px", fontSize: "14px", fontFamily: "inherit", resize: "vertical", boxSizing: "border-box" }}
+              />
+            )}
+
+            {activeTab === "link" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                <div>
+                  <div style={{ fontSize: "9px", color: "#475569", letterSpacing: "2px", marginBottom: "6px" }}>URL TO ANALYZE</div>
+                  <input
+                    type="text"
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
+                    placeholder="https://example.com/article-or-post"
+                    style={{ width: "100%", background: "#080B14", border: "1px solid #1E2D45", borderRadius: "10px", color: "#CBD5E1", padding: "12px 14px", fontSize: "14px", fontFamily: "inherit", boxSizing: "border-box" }}
+                  />
+                </div>
+                <div>
+                  <div style={{ fontSize: "9px", color: "#475569", letterSpacing: "2px", marginBottom: "6px" }}>YOUR COMMENT <span style={{ color: "#2D3A50" }}>(OPTIONAL — tell us what concerned you about this link)</span></div>
+                  <textarea
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    placeholder='e.g. "This article claims vaccines cause autism — is this true?"'
+                    style={{ width: "100%", minHeight: "80px", background: "#080B14", border: "1px solid #1E2D45", borderRadius: "10px", color: "#CBD5E1", padding: "12px 14px", fontSize: "14px", fontFamily: "inherit", resize: "vertical", boxSizing: "border-box" }}
+                  />
+                </div>
+              </div>
+            )}
+
+            <div style={{ textAlign: "right", marginTop: "12px" }}>
+              <button
+                onClick={analyze}
+                disabled={!canSubmit || isAnalyzing}
+                style={{ background: canSubmit && !isAnalyzing ? "#F59E0B" : "#1A2030", color: canSubmit && !isAnalyzing ? "#080B14" : "#2D3A50", border: "none", padding: "12px 32px", borderRadius: "8px", fontSize: "11px", letterSpacing: "3px", fontWeight: 900, cursor: canSubmit && !isAnalyzing ? "pointer" : "default", fontFamily: "inherit" }}
+              >
+                {isAnalyzing ? "INVESTIGATING..." : "▶ INVESTIGATE"}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Progress bar */}
+        {hasRun && !allDone && (
+          <div style={{ background: "#0D1220", border: "1px solid #1E2D45", borderRadius: "12px", padding: "20px", marginBottom: "28px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <Spinner color="#F59E0B" />
+                <span style={{ fontSize: "10px", color: "#F59E0B", letterSpacing: "3px" }}>AGENTS INVESTIGATING...</span>
+              </div>
+              <span style={{ fontSize: "11px", color: "#475569" }}>{completedCount} / {totalCount} complete</span>
+            </div>
+            <div style={{ height: "6px", background: "#0F1A2B", borderRadius: "3px", overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${progressPct}%`, background: "#F59E0B", borderRadius: "3px", transition: "width 0.4s ease" }} />
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: "10px", gap: "6px" }}>
+              {ALL_AGENTS.map((agent) => (
+                <div key={agent.id} style={{ flex: 1, textAlign: "center" }}>
+                  <div style={{ fontSize: "14px", marginBottom: "2px" }}>{agent.emoji}</div>
+                  <div style={{ width: "100%", height: "3px", borderRadius: "2px", background: results[agent.id] ? agent.color : loading[agent.id] ? agent.color + "40" : "#1E2D45", transition: "background 0.3s" }} />
+                  <div style={{ fontSize: "8px", color: results[agent.id] ? agent.color : "#2D3A50", marginTop: "3px", letterSpacing: "1px" }}>
+                    {results[agent.id] ? "DONE" : loading[agent.id] ? "..." : "WAIT"}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Truth-O-Meter */}
+        {allDone && overallScore !== null && (
+          <div style={{ background: "#0D1220", border: `1px solid ${getScoreColor(overallScore)}40`, borderRadius: "16px", padding: "28px", marginBottom: "28px", textAlign: "center", animation: "fadeIn 0.5s ease" }}>
+            <div style={{ fontSize: "10px", color: "#475569", letterSpacing: "4px", marginBottom: "16px" }}>◈ TRUTH-O-METER ◈</div>
+            <div style={{ fontSize: "80px", fontWeight: 900, color: getScoreColor(overallScore), fontFamily: "Georgia, serif", lineHeight: 1 }}>{overallScore}<span style={{ fontSize: "36px", opacity: 0.6 }}>%</span></div>
+            <div style={{ fontSize: "22px", letterSpacing: "6px", color: getScoreColor(overallScore), margin: "8px 0", fontWeight: 700 }}>{getVerdict(overallScore)}</div>
+            <div style={{ height: "8px", background: "#0F1A2B", borderRadius: "4px", overflow: "hidden", marginTop: "16px" }}>
+              <div style={{ height: "100%", width: `${overallScore}%`, background: getScoreColor(overallScore), borderRadius: "4px", transition: "width 1s ease" }} />
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: "6px", fontSize: "9px", color: "#2D3A50" }}>
+              <span>FALSE</span><span>UNCERTAIN</span><span>TRUE</span>
+            </div>
+          </div>
+        )}
+
+        {/* Results */}
+        {hasRun && (
+          <div>
+            <AgentCard agent={JOURNALIST} result={results[JOURNALIST.id]} isLoading={loading[JOURNALIST.id]} />
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", margin: "20px 0" }}>
+              <div style={{ flex: 1, height: "1px", background: "#1E2D45" }} />
+              <div style={{ fontSize: "9px", color: "#334155", letterSpacing: "3px", whiteSpace: "nowrap" }}>◈ SPECIALIST ANALYSIS ◈</div>
+              <div style={{ flex: 1, height: "1px", background: "#1E2D45" }} />
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: "16px" }}>
+              {SPECIALISTS.map((agent) => (
+                <AgentCard key={agent.id} agent={agent} result={results[agent.id]} isLoading={loading[agent.id]} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {!hasRun && (
+          <div style={{ textAlign: "center", padding: "60px 20px", color: "#1E2D45" }}>
+            <div style={{ fontSize: "40px", marginBottom: "12px" }}>◈</div>
+            <div style={{ fontSize: "11px", letterSpacing: "3px" }}>SUBMIT A CLAIM OR LINK TO BEGIN ANALYSIS</div>
+            <div style={{ fontSize: "10px", color: "#172030", letterSpacing: "1px", marginTop: "8px" }}>THE JOURNALIST WILL GIVE YOU THE SUMMARY — SPECIALISTS PROVIDE THE DETAIL</div>
+          </div>
+        )}
+
+        <div style={{ marginTop: "50px", textAlign: "center", fontSize: "10px", color: "#1E2D45", letterSpacing: "2px" }}>TRUTH-SEEKER AI — POWERED BY CLAUDE</div>
+      </div>
+    </div>
+  )
+}
