@@ -173,7 +173,15 @@ export default function TruthSeeker() {
     setOverallScore(Math.round(scores.reduce((s, v) => s + v, 0) / scores.length))
     setIsAnalyzing(false)
   }
-
+const handleShare = (platform: "twitter" | "facebook") => {
+    const url = "https://v0-ai-truth-dashboard.vercel.app"
+    const text = `I just fact-checked a claim on Truth-Seeker AI and it scored ${overallScore}% — ${overallScore !== null ? getVerdict(overallScore) : ""}. Check it yourself:`
+    if (platform === "twitter") {
+      window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank')
+    } else {
+      window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(text)}`, '_blank')
+    }
+  }
   const completedCount = Object.keys(results).length
   const totalCount = ALL_AGENTS.length
   const progressPct = hasRun ? Math.round((completedCount / totalCount) * 100) : 0
@@ -333,6 +341,20 @@ export default function TruthSeeker() {
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: "6px", fontSize: "9px", color: "#2D3A50" }}>
               <span>FALSE</span><span>UNCERTAIN</span><span>TRUE</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "center", gap: "12px", marginTop: "20px" }}>
+              <button
+                onClick={() => handleShare("twitter")}
+                style={{ display: "flex", alignItems: "center", gap: "8px", background: "#000", color: "#fff", border: "none", padding: "10px 20px", borderRadius: "8px", fontSize: "11px", letterSpacing: "2px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+              >
+                𝕏 SHARE ON X
+              </button>
+              <button
+                onClick={() => handleShare("facebook")}
+                style={{ display: "flex", alignItems: "center", gap: "8px", background: "#1877F2", color: "#fff", border: "none", padding: "10px 20px", borderRadius: "8px", fontSize: "11px", letterSpacing: "2px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+              >
+                f SHARE ON FACEBOOK
+              </button>
             </div>
           </div>
         )}
