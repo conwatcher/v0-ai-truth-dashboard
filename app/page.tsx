@@ -2,6 +2,29 @@
 
 import { useState, useRef } from "react"
 
+import { useEffect } from 'react';
+
+export default function Page() {
+    // This part sends the visit to the counter
+    useEffect(() => {
+        async function logVisit() {
+            try {
+                await fetch('/api/counter', { method: 'POST' });
+            } catch (error) {
+                console.error('Failed to update visit count:', error);
+            }
+        }
+        logVisit();
+    }, []);
+
+    return (
+        <main>
+            <h1>Welcome to the AI Truth Dashboard</h1>
+            <p>Your visits are being counted securely and privately.</p>
+        </main>
+    );
+}
+
 const JOURNALIST = { id: "journalist", name: "Journalist", emoji: "📰", role: "Investigative Summary", color: "#34D399" }
 const SPECIALISTS = [
   { id: "scientist", name: "Scientist", emoji: "🔬", role: "Empirical Analysis", color: "#38BDF8" },
