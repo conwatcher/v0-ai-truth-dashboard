@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useRef } from "react";
 
-// This part sends the visit to the counter
+// This is the main Page component for the website
 export default function Page() {
+    // This part sends the visit to the counter
     useEffect(() => {
         async function logVisit() {
             try {
@@ -15,14 +16,11 @@ export default function Page() {
         logVisit();
     }, []);
 
-    return (
-        <>
-            <TruthSeeker />
-        </>
-    );
+    // Render the TruthSeeker component
+    return <TruthSeeker />;
 }
 
-// TruthSeeker Component
+// Constants and Helper Functions
 const JOURNALIST = { id: "journalist", name: "Journalist", emoji: "📰", role: "Investigative Summary", color: "#34D399" };
 const SPECIALISTS = [
     { id: "scientist", name: "Scientist", emoji: "🔬", role: "Empirical Analysis", color: "#38BDF8" },
@@ -56,6 +54,7 @@ function getVerdict(score: number) {
     return "TRUE";
 }
 
+// Spinner Component
 function Spinner({ color }: { color: string }) {
     return (
         <span
@@ -74,6 +73,7 @@ function Spinner({ color }: { color: string }) {
     );
 }
 
+// AgentCard Component
 function AgentCard({
     agent,
     result,
@@ -94,26 +94,23 @@ function AgentCard({
                 animation: result ? "fadeIn 0.4s ease" : undefined,
             }}
         >
-            {/* Rest of the AgentCard functionality remains unchanged */}
+            {/* Content of the agent card */}
         </div>
     );
 }
 
+// TruthSeeker Component
 function TruthSeeker() {
     const [activeTab, setActiveTab] = useState<"question" | "link">("question");
     const [query, setQuery] = useState("");
     const [url, setUrl] = useState("");
     const [comment, setComment] = useState("");
     const [imageBase64, setImageBase64] = useState<string | null>(null);
-    const [imageMediaType, setImageMediaType] = useState<string>("image/jpeg");
-    const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [results, setResults] = useState<Record<string, { analysis: string; score: number }>>({});
-    const [loading, setLoading] = useState<Record<string, boolean>>({});
     const [overallScore, setOverallScore] = useState<number | null>(null);
-    const [hasRun, setHasRun] = useState(false);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Rest of the TruthSeeker functionality remains unchanged
-    return <div>{/* TruthSeeker implementation */}</div>;
+    // TruthSeeker functionality goes here
+    return <div>TruthSeeker functionality will be rendered here.</div>;
 }
