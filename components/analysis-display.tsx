@@ -1,6 +1,6 @@
 "use client"
 
-import { Newspaper, FlaskConical, Bot, Telescope, ShieldAlert, Loader2, FileText, Link as LinkIcon, Image as ImageIcon } from "lucide-react"
+import { Newspaper, FlaskConical, Bot, Telescope, ShieldAlert, Loader2, FileText, Link as LinkIcon, Image as ImageIcon, Share2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export interface AgentPerspective {
@@ -108,7 +108,16 @@ export function AnalysisDisplay({ result, activeAgent, isLoading, queryInfo }: A
   const perspective = result?.[resultKey as keyof Omit<AnalysisResult, "overallTruthScore" | "timestamp">]
 
   const QueryIcon = queryInfo ? queryTypeIcons[queryInfo.type] : FileText
-
+const handleShare = (platform: "twitter" | "facebook") => {
+  const url = "https://v0-ai-truth-dashboard.vercel.app"
+  const text = `I just fact-checked a claim on Truth-Seeker AI and it scored ${perspective.truthScore}% truthful. See the full analysis:`
+  if (platform === "twitter") {
+    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank')
+  } else {
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(text)}`, '_blank')
+  }
+}
+  
   if (isLoading) {
     return (
       <div className="rounded-lg border border-border bg-card p-8">
@@ -210,6 +219,26 @@ export function AnalysisDisplay({ result, activeAgent, isLoading, queryInfo }: A
             </ul>
           </div>
         )}
+        {/* Share Buttons */}
+        <div className="border-t border-border pt-4 mt-4">
+          <h4 className="text-sm font-semibold text-foreground mb-3">Share Results</h4>
+          <div className="flex gap-3">
+            <button
+              onClick={() => handleShare("twitter")}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-black text-white text-sm font-medium hover:bg-zinc-800 transition-colors"
+            >
+              <Share2 className="h-4 w-4" />
+              Share on X
+            </button>
+            <button
+              onClick={() => handleShare("facebook")}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
+            >
+              <Share2 className="h-4 w-4" />
+              Share on Facebook
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   )
