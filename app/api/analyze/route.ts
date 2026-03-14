@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
     if (!systemPrompt) return NextResponse.json({ error: "Unknown agent" }, { status: 400 });
     messageContent = `Analyze this claim: "${query}"`;
   }
-
+systemPrompt = `Today's date is ${new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}. You are operating in real time.\n\n` + systemPrompt;
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
