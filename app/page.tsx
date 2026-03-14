@@ -1,8 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
-
-import { useEffect } from 'react';
+import { useState, useRef, useEffect } from "react";
 
 export default function Page() {
     // This part sends the visit to the counter
@@ -25,6 +23,8 @@ export default function Page() {
     );
 }
 
+// (The rest of your file remains unchanged)
+const JOURNALIST = { id: "journalist", name: "Journalist", emoji: "E", role: "Investigativ" };
 const JOURNALIST = { id: "journalist", name: "Journalist", emoji: "📰", role: "Investigative Summary", color: "#34D399" }
 const SPECIALISTS = [
   { id: "scientist", name: "Scientist", emoji: "🔬", role: "Empirical Analysis", color: "#38BDF8" },
