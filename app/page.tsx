@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 
+// Main Page component that includes the visit counter and TruthSeeker
 export default function Page() {
     // This part sends the visit to the counter
     useEffect(() => {
@@ -92,7 +93,27 @@ function AgentCard({
                 animation: result ? "fadeIn 0.4s ease" : undefined,
             }}
         >
-            {/* Here goes the full display logic */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <div style={{ width: "40px", height: "40px", background: agent.color, borderRadius: "8px" }}>
+                        <span>{agent.emoji}</span>
+                    </div>
+                    <div>
+                        <div style={{ fontWeight: "bold", color: agent.color }}>{agent.name}</div>
+                        <div style={{ fontSize: "12px", color: "gray" }}>{agent.role}</div>
+                    </div>
+                </div>
+                {result && (
+                    <div style={{ textAlign: "right" }}>
+                        <div style={{ fontSize: "28px", fontWeight: "bold", color: getScoreColor(result.score) }}>
+                            {result.score}
+                        </div>
+                        <div style={{ fontSize: "12px", color: "gray" }}>{SCORE_LABEL[agent.id]}</div>
+                    </div>
+                )}
+            </div>
+            {isLoading && <Spinner color={agent.color} />}
+            {!isLoading && result && <p>{result.analysis}</p>}
         </div>
     );
 }
@@ -108,12 +129,47 @@ function TruthSeeker() {
     const [overallScore, setOverallScore] = useState<number | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    function handleTabChange(tab: "question" | "link") {
+        setActiveTab(tab);
+    }
+
     return (
         <div style={{ padding: "20px" }}>
-            <h1>TruthSeeker AI</h1>
-            <p>Welcome to the TruthSeeker app! Use the form below to begin your analysis.</p>
+            <h1 style={{ color: "white" }}>TruthSeeker AI</h1>
+            <p>Verify a claim or analyze a link below.</p>
 
-            {/* Add your form or interactive functionality here */}
+            <div>
+                <button onClick={() => handleTabChange("question")}>Question</button>
+                <button onClick={() => handleTabChange("link")}>Link</button>
+            </div>
+
+            {activeTab === "question" && (
+                <textarea
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Enter your question"
+                />
+            )}
+
+            {activeTab === "link" && (
+                <input
+                    type="text"
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
+                    placeholder="Enter a URL"
+                />
+            )}
+
+            <div>
+                <button
+                    onClick={() => {
+                        // Trigger analysis logic
+                        console.log("Analyze button clicked!");
+                    }}
+                >
+                    Analyze
+                </button>
+            </div>
         </div>
     );
 }
