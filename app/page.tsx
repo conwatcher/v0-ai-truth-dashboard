@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useRef } from "react";
 
-// This is the main Page component for the website
 export default function Page() {
     // This part sends the visit to the counter
     useEffect(() => {
@@ -16,7 +15,6 @@ export default function Page() {
         logVisit();
     }, []);
 
-    // Render the TruthSeeker component
     return <TruthSeeker />;
 }
 
@@ -94,7 +92,7 @@ function AgentCard({
                 animation: result ? "fadeIn 0.4s ease" : undefined,
             }}
         >
-            {/* Content of the agent card */}
+            {/* Here goes the full display logic */}
         </div>
     );
 }
@@ -108,9 +106,14 @@ function TruthSeeker() {
     const [imageBase64, setImageBase64] = useState<string | null>(null);
     const [results, setResults] = useState<Record<string, { analysis: string; score: number }>>({});
     const [overallScore, setOverallScore] = useState<number | null>(null);
-    const [isAnalyzing, setIsAnalyzing] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // TruthSeeker functionality goes here
-    return <div>TruthSeeker functionality will be rendered here.</div>;
+    return (
+        <div style={{ padding: "20px" }}>
+            <h1>TruthSeeker AI</h1>
+            <p>Welcome to the TruthSeeker app! Use the form below to begin your analysis.</p>
+
+            {/* Add your form or interactive functionality here */}
+        </div>
+    );
 }
